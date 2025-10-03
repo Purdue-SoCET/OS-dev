@@ -9,8 +9,8 @@ CFLAGS += -DUART_STDIO
 
 # Source files
 FATFS = FatFs/source/*.c
-SRCS = FatFs/image_test.c FatFs/os.c FatFs/image.c $(FATFS)
-#SRCS = slip/x07_receiver.c
+#SRCS = FatFs/image_test.c FatFs/os.c FatFs/image.c $(FATFS)
+SRCS = main.c FatFs/os.c
 
 # Output files
 TARGET = a.out
