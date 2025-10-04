@@ -1,13 +1,16 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdio.h>
-#include "pal.h"
+#include <stdlib.h>
+#include "FatFs/source/pal.h"
+#include "FatFs/source/ff.h"
 
 #define BAUD_CYCLES 2604
-#define MEM_BASE ((volatile uint8_t*)0x80000000u)
 #define MEM_SIZE (10 * 1024)   
 
-// SLIP FRAMING CONSTANT
+// ======================================================================
+// Define constants
+// ======================================================================
 #define END 0xC0
 #define ESC 0xDB
 #define ESC_END 0xDC
@@ -17,7 +20,9 @@
 #define TYPE_DATA 0x02
 #define MAX_FRAME (10 * 1024)
 
-// transfer_info struct
+// ======================================================================
+// Define structures
+// ======================================================================
 typedef struct {
     uint32_t file_id;
     uint32_t total;        // total file size (from META)
@@ -29,36 +34,16 @@ typedef struct {
     char     fname[256];
 } transfer_info_t;
 
-// SLIP State
 typedef enum { 
     ST_IDLE = 0, 
     ST_IN, 
     ST_ESC 
 } slip_state_t;
 
-// Function Declaration
-static inline uint16_t rd16(const uint8_t *p);
-static inline uint32_t rd32(const uint8_t *p);
-static void uart_init(void);
-static void uart_rx(void);
-static void split_byte_stream(uint8_t byte);
-static void handle_frame(uint8_t *buf, uint32_t frame_num);
-static void handle_meta(const uint8_t *buf, uint32_t frame_num);
-static void handle_data(const uint8_t *buf, uint32_t frame_num_in);
-
-static transfer_info_t transfer_info;
+// ======================================================================
+// UART Initialization
+// ======================================================================
 static UARTRegBlk *const uart = (UARTRegBlk *)UART_BASE;
-static uint8_t frame_buf[MAX_FRAME];
-static uint32_t frame_num = 0;
-static uint8_t data_buf[MEM_SIZE];
-static slip_state_t state = ST_IDLE;
-
-static inline uint16_t rd16(const uint8_t *p);
-static inline uint32_t rd32(const uint8_t *p);
-static void handle_frame(uint8_t *buf, uint32_t frame_num);
-static void handle_meta (const uint8_t *buf, uint32_t frame_num);
-static void handle_data (const uint8_t *buf, uint32_t frame_num);
-
 static void __init_uart(void) __attribute__((constructor));
 static void __init_uart(void)
 {
@@ -66,11 +51,89 @@ static void __init_uart(void)
     uart->txstate = BAUD_CYCLES << 16;
 }
 
-// =========================== FUNCTIONS =============================
+// ======================================================================
+// Define global variables
+// ======================================================================
+static transfer_info_t transfer_info;
+static slip_state_t state = ST_IDLE;
+static uint8_t frame_buf[MAX_FRAME];
+static uint32_t frame_num = 0;
+static uint8_t data_buf[MEM_SIZE];
+unsigned char photo_buff[MEM_SIZE];
+unsigned char photo_len;
+
+// ======================================================================
+// Declare functions
+// ======================================================================
+static inline uint16_t rd16(const uint8_t *p);
+static inline uint32_t rd32(const uint8_t *p);
+static void uart_rx(void);
+static void split_byte_stream(uint8_t byte);
+static void handle_frame(uint8_t *buf, uint32_t frame_num);
+static void handle_meta(const uint8_t *buf, uint32_t frame_num);
+static void handle_data(const uint8_t *buf, uint32_t frame_num_in);
+static inline uint16_t rd16(const uint8_t *p);
+static inline uint32_t rd32(const uint8_t *p);
+static void handle_frame(uint8_t *buf, uint32_t frame_num);
+static void handle_meta (const uint8_t *buf, uint32_t frame_num);
+static void handle_data (const uint8_t *buf, uint32_t frame_num);
+void send_photo_to_SD(const char *filename);
+
+// ======================================================================
+// Functions
+// ======================================================================
+void send_photo_to_SD(const char *filename) {
+    // Declare variables	
+    FATFS fs;
+    FIL fil;
+    FRESULT res;
+    UINT bw;
+    UINT bytes_left = photo_len;
+    UINT offset = 0;
+
+    // Mount
+    res = f_mount(&fs, "", 0);
+    printf("f_mount here!\n");
+    if (res) {
+        printf("f_mount failed with %d\n", res);
+    }
+
+    // Create file in SD
+    res = f_open(&fil, filename, FA_CREATE_ALWAYS | FA_WRITE);
+    printf("f_open here!\n");
+    if (res) {
+	f_close(&fil);
+	f_mount(0, "", 0);
+        printf("f_open for dst failed with %d\n", res);
+    }
+
+    // Write photo data
+    while (bytes_left > 0) {
+	printf("Try writing data!\n");	
+	UINT chunk_size = (bytes_left > 512) ? 512 : bytes_left;
+		
+	res = f_write(&fil, &photo_buff[offset], chunk_size, &bw);
+	if (res != FR_OK || bw != chunk_size) {
+	    printf("f_write failed with %d\n", res);
+            break;
+	}
+
+	offset += chunk_size;
+	bytes_left -= chunk_size;
+    }
+
+    // Close file
+    f_close(&fil);
+    f_mount(0, "", 0);
+    printf("Complete sending photo to SD!\n");
+
+}
+
 // ENDIAN LOADER
 static inline uint16_t rd16(const uint8_t *p) {
     return (uint16_t)p[0] | ((uint16_t)p[1] << 8);
 }
+
 static inline uint32_t rd32(const uint8_t *p) {
     return (uint32_t)p[0]
          | ((uint32_t)p[1] << 8)
@@ -79,7 +142,6 @@ static inline uint32_t rd32(const uint8_t *p) {
 }
 
 static void uart_rx(void) {
-    //printf("uart_rx starts here!\n");
     if ((uart->rxstate) & 0x1) {
         uint32_t rxdata = uart -> rxdata;
         uint8_t fifoCount = rxdata >> 24;
@@ -154,9 +216,9 @@ static void handle_meta(const uint8_t *buf, uint32_t frame_num) {
     uint32_t total_size = rd32(buf + 6);
     uint16_t chunk_size = rd16(buf + 10);
     uint8_t  fname_len  = buf[12];
-    //if (13u + (uint32_t)fname_len > frame_num) return;  // check the range
-    //if (total_size > MEM_SIZE) return;                       // preventing the size getting bigger than the RAM size
-    //if (fname_len > 255) fname_len = 255;
+    if (13u + (uint32_t)fname_len > frame_num) return;  // check the range
+    //if (total_size > MEM_SIZE) return; // preventing the size getting bigger than the RAM size
+    if (fname_len > 255) fname_len = 255;
     
     // init receive session
     memset(&transfer_info, 0, sizeof(transfer_info));
@@ -214,10 +276,8 @@ static void handle_data(const uint8_t *buf, uint32_t frame_num_in){
 
 
 int main(void) {
-    printf("program starts here!\n");
+    printf("Start receiving photo!\n");
     for (;;) {
         uart_rx();
     }
-
-
 }
