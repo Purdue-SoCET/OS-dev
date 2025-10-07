@@ -59,6 +59,7 @@ static slip_state_t state = ST_IDLE;
 static uint8_t frame_buf[MAX_FRAME];
 static uint32_t frame_num = 0;
 static uint8_t data_buf[MEM_SIZE];
+static uint32_t count_photo = 0;
 
 // ======================================================================
 // Declare functions
@@ -75,12 +76,17 @@ static inline uint32_t rd32(const uint8_t *p);
 static void handle_frame(uint8_t *buf, uint32_t frame_num);
 static void handle_meta (const uint8_t *buf, uint32_t frame_num);
 static void handle_data (const uint8_t *buf, uint32_t frame_num);
-void send_photo_to_SD(const char *filename);
+void send_photo_to_SD();
 
 // ======================================================================
 // Functions
 // ======================================================================
-void send_photo_to_SD(const char *filename) {
+void send_photo_to_SD() {
+    // Name file
+    count_photo++;
+    char filename[32];
+    snprintf(filename, sizeof(filename), "image%lu.bmp", (unsigned long)count_photo);
+
     // Declare variables	
     FATFS fs;
     FIL fil;
@@ -254,9 +260,9 @@ static void handle_data(const uint8_t *buf, uint32_t frame_num_in){
     // once appending to the data buf is done, copy it to the RAM
     if (transfer_info.received == transfer_info.total) {
         printf("Received image from PC!\n");
-	printf("Start sending to SD card...\n");
+	printf("Start sending it to SD card...\n");
         transfer_info.active = 0;
-	send_photo_to_SD("received_photo.bmp");
+	send_photo_to_SD();
     }
 }
 
@@ -264,7 +270,7 @@ static void handle_data(const uint8_t *buf, uint32_t frame_num_in){
 // Functions
 // ======================================================================
 int main(void) {
-    //printf("Start receiving photo!\n");
+    printf("Start receiving photo...\n");
     for (;;) {
         uart_rx();
     }
