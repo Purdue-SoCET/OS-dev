@@ -5,12 +5,12 @@
 #include "FatFs/source/pal.h"
 #include "FatFs/source/ff.h"
 
-#define BAUD_CYCLES 2604
-#define MEM_SIZE (10 * 1024)   
-
 // ======================================================================
 // Define constants
 // ======================================================================
+#define BAUD_CYCLES 2604
+#define MEM_SIZE (10 * 1024)
+
 #define END 0xC0
 #define ESC 0xDB
 #define ESC_END 0xDC
@@ -59,8 +59,6 @@ static slip_state_t state = ST_IDLE;
 static uint8_t frame_buf[MAX_FRAME];
 static uint32_t frame_num = 0;
 static uint8_t data_buf[MEM_SIZE];
-unsigned char photo_buff[MEM_SIZE];
-unsigned char photo_len;
 
 // ======================================================================
 // Declare functions
@@ -88,19 +86,19 @@ void send_photo_to_SD(const char *filename) {
     FIL fil;
     FRESULT res;
     UINT bw;
-    UINT bytes_left = photo_len;
+    UINT bytes_left = transfer_info.received;
     UINT offset = 0;
 
     // Mount
     res = f_mount(&fs, "", 0);
-    printf("f_mount here!\n");
+    printf("Start mounting SD card...\n");
     if (res) {
         printf("f_mount failed with %d\n", res);
     }
 
     // Create file in SD
     res = f_open(&fil, filename, FA_CREATE_ALWAYS | FA_WRITE);
-    printf("f_open here!\n");
+    printf("Creating file in SD card...\n");
     if (res) {
 	f_close(&fil);
 	f_mount(0, "", 0);
@@ -109,10 +107,10 @@ void send_photo_to_SD(const char *filename) {
 
     // Write photo data
     while (bytes_left > 0) {
-	printf("Try writing data!\n");	
+	printf("Writing data...\n");	
 	UINT chunk_size = (bytes_left > 512) ? 512 : bytes_left;
 		
-	res = f_write(&fil, &photo_buff[offset], chunk_size, &bw);
+	res = f_write(&fil, &data_buf[offset], chunk_size, &bw);
 	if (res != FR_OK || bw != chunk_size) {
 	    printf("f_write failed with %d\n", res);
             break;
@@ -145,16 +143,13 @@ static void uart_rx(void) {
     if ((uart->rxstate) & 0x1) {
         uint32_t rxdata = uart -> rxdata;
         uint8_t fifoCount = rxdata >> 24;
-        // if (fifoCount == 0) fifoCount = 1;   
-        // if (fifoCount > 3)  fifoCount = 3;
+        if (fifoCount == 0) fifoCount = 1;   
+        if (fifoCount > 3)  fifoCount = 3;
         for (uint8_t i = 0; i < fifoCount; i++) {
             uint8_t b = rxdata & 0xFF;
             split_byte_stream(b);
-            rxdata >> 9;
+            rxdata >> 8;
         }
-    }
-    else if (uart->rxstate & 0x2) {
-        //
     }
 }
 
@@ -194,16 +189,11 @@ static void handle_frame(uint8_t *buf, uint32_t frame_num){
     uint8_t type = buf[0];
     if (!frame_num) return;
     if (type == TYPE_META) {
-        printf("TYPE_META\n");
 	handle_meta(buf, frame_num); 
     } 
     else if (type == TYPE_DATA) {
-	printf("TYPE_DATA\n");
         handle_data(buf, frame_num); 
     }
-    else {
-        // other type -> no need to handle so far
-    } 
 }
 
 // META Frame Handler
@@ -240,14 +230,11 @@ static void handle_meta(const uint8_t *buf, uint32_t frame_num) {
 // [0]=0x02, [1..4]=file_id, [5..8]=seq, [9..10]=payload_len, [11..]=payload
 static void handle_data(const uint8_t *buf, uint32_t frame_num_in){
     const uint32_t MIN_DATA = 11u;
-    printf("Before checking active\n");
     if (transfer_info.active == 0) return;
-    printf("Before checking min data\n");
     if (frame_num_in < MIN_DATA) return;
 
     uint32_t file_id     = rd32(buf + 1);
     uint32_t seq         = rd32(buf + 5);
-    printf("seq : %d\n", seq);
     uint16_t payload_len = rd16(buf + 9);
 
     if (11u + (uint32_t)payload_len > frame_num_in) return; // length check
@@ -266,17 +253,18 @@ static void handle_data(const uint8_t *buf, uint32_t frame_num_in){
 
     // once appending to the data buf is done, copy it to the RAM
     if (transfer_info.received == transfer_info.total) {
-        printf("Success!\n");
-	//memcpy((void*)MEM_BASE, data_buf, transfer_info.total);
+        printf("Received image from PC!\n");
+	printf("Start sending to SD card...\n");
         transfer_info.active = 0;
-        // FatFs, SD card
+	send_photo_to_SD("received_photo.bmp");
     }
 }
-// =========================== Main =============================
 
-
+// ======================================================================
+// Functions
+// ======================================================================
 int main(void) {
-    printf("Start receiving photo!\n");
+    //printf("Start receiving photo!\n");
     for (;;) {
         uart_rx();
     }
