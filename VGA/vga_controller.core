@@ -1,0 +1,28 @@
+CAPI=2:
+name: socet:os_dev:vga:vga_controller
+
+filesets:
+    rtl:
+        files:
+            - OS-dev/VGA/vga_controller.sv
+        file_type: systemVerilogSource
+
+
+targets:
+    default: &default
+        filesets:
+            - rtl
+        toplevel: vga_controller
+
+    fpga:
+        <<: *default
+        description: Synthesize for FPGA
+        default_tool: quartus
+        toplevel:
+            - vga_controller
+
+        tools:
+            quartus:
+                family: Cyclone IV E
+                device: EP4CE115F29C7 
+                

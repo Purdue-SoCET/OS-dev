@@ -1,0 +1,28 @@
+CAPI=2:
+name: socet:os_dev:vga:clk25
+
+filesets:
+    rtl:
+        files:
+            - OS-dev/VGA/clk25.sv
+        file_type: systemVerilogSource
+
+
+targets:
+    default: &default
+        filesets:
+            - rtl
+        toplevel: clk25
+
+    fpga:
+        <<: *default
+        description: Synthesize for FPGA
+        default_tool: quartus
+        toplevel:
+            - clk25
+
+        tools:
+            quartus:
+                family: Cyclone IV E
+                device: EP4CE115F29C7 
+                
