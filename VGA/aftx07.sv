@@ -446,7 +446,7 @@ module aftx07 #(
     `ADD_AHB(ff_ram, MEMORY_AHB_IDX, FF_RAM_N_WORDS, ffram_protif)
     `ADD_AHB(memory_controller, SRAM_AHB_IDX, SRAM_N_WORDS, memory_protif)
     
-    `ADD_AHB(vga, VGA_AHB_IDX, 16, vga_protif) // vga
+    `ADD_AHB(vga, VGA_AHB_IDX, 'd160000, vga_protif) // vga
 
     `ADD_APB(gpio0, GPIO0_APB_IDX, 8, gpio_protifs[0])
     `ADD_APB(gpio1, GPIO1_APB_IDX, 8, gpio_protifs[1])
