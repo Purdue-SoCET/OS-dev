@@ -1,0 +1,26 @@
+CAPI=2:
+name: socet:OS-dev:crc:0.1.0
+
+filesets:
+    rtl:
+        depend:
+        files:
+            - crc.sv
+        file_type: systemVerilogSource
+
+targets:
+    default: &default
+        filesets:
+            - rtl
+        toplevel: crc
+    
+    fpga:
+        <<: *default
+        description: Synthesize for FPGA
+        default_tool: quartus
+        toplevel:
+            - crc
+        tools:
+            quartus:
+                family: Cyclone IV E
+                device: EP4CE115F29C7

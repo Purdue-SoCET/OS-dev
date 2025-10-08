@@ -52,8 +52,7 @@ module crc #(
     end
 
     always_comb begin
-        data_byte = 0; 
-        crc_temp = 0; 
+        data_byte = '0; 
         next_crc = crc_in;
        
         input_data = data_in;
@@ -83,12 +82,11 @@ module crc #(
             end
         end
            
-        // Final XOR
-        crc_temp = next_crc ^ final_xor_val;
-           
         // Reflect output if required
         if (reflect_out) begin
             crc_temp = reverse_bits_crc(crc_temp);
+        end else begin
+            crc_temp = next_crc ^ final_xor_val;
         end
    
     end
