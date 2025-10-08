@@ -1,0 +1,35 @@
+CAPI=2:
+name: socet:os_dev:vga:top_vga
+
+filesets:
+    rtl:
+        depend:
+            - "socet:bus-components:bus_protocol_if"
+            - "socet:os_dev:vga:converter_640_320"
+            - "socet:os_dev:vga:frame_buffer"
+            - "socet:os_dev:vga:vga_subordinate"
+            - "socet:os_dev:vga:vga_controller"
+            - "socet:os_dev:vga:clk25"
+        files:
+            - OS-dev/VGA/top_vga.sv
+        file_type: systemVerilogSource
+
+
+targets:
+    default: &default
+        filesets:
+            - rtl
+        toplevel: top_vga
+
+    fpga:
+        <<: *default
+        description: Synthesize for FPGA
+        default_tool: quartus
+        toplevel:
+            - top_vga
+
+        tools:
+            quartus:
+                family: Cyclone IV E
+                device: EP4CE115F29C7 
+                
