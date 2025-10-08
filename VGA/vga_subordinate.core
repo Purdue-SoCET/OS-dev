@@ -1,0 +1,30 @@
+CAPI=2:
+name: socet:os_dev:vga:vga_subordinate
+
+filesets:
+    rtl:
+        depend:
+            - "socet:bus-components:bus_protocol_if"
+        files:
+            - OS-dev/VGA/vga_subordinate.sv
+        file_type: systemVerilogSource
+
+
+targets:
+    default: &default
+        filesets:
+            - rtl
+        toplevel: vga_subordinate
+
+    fpga:
+        <<: *default
+        description: Synthesize for FPGA
+        default_tool: quartus
+        toplevel:
+            - vga_subordinate
+
+        tools:
+            quartus:
+                family: Cyclone IV E
+                device: EP4CE115F29C7 
+                
