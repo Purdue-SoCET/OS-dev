@@ -1,10 +1,12 @@
 CAPI=2:
-name: socet:os_dev:vga:clk25
+name: socet:os_dev:vga:vga_ahb
 
 filesets:
     rtl:
+        depend:
+            - "socet:os_dev:vga:vga_controller"
         files:
-            - OS-dev/VGA/clk25.sv
+            - OS-dev/VGA/vga_ahb.sv
         file_type: systemVerilogSource
 
 
@@ -12,14 +14,14 @@ targets:
     default: &default
         filesets:
             - rtl
-        toplevel: clk25
+        toplevel: vga_ahb
 
     fpga:
         <<: *default
         description: Synthesize for FPGA
         default_tool: quartus
         toplevel:
-            - clk25
+            - vga_ahb
 
         tools:
             quartus:
