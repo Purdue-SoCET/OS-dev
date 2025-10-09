@@ -1,10 +1,13 @@
 CAPI=2:
-name: socet:os_dev:vga:vga_controller
+name: socet:OS-dev:vga_ahb
 
 filesets:
     rtl:
+        depend:
+            - "socet:bus-components:bus_protocol_if"
+            - "socet:OS-dev:vga_controller"
         files:
-            - OS-dev/VGA/vga_controller.sv
+            - vga_ahb.sv
         file_type: systemVerilogSource
 
 
@@ -12,14 +15,14 @@ targets:
     default: &default
         filesets:
             - rtl
-        toplevel: vga_controller
+        toplevel: vga_ahb
 
     fpga:
         <<: *default
         description: Synthesize for FPGA
         default_tool: quartus
         toplevel:
-            - vga_controller
+            - vga_ahb
 
         tools:
             quartus:
