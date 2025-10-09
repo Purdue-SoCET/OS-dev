@@ -61,7 +61,7 @@ module crc #(
         // end
            
         if (enable) begin
-            for (j = DATA_BYTES - 1; j >= 0; j = j - 1) begin
+            for (j = 0; j < DATA_BYTES; j = j + 1) begin
                 // data_byte = input_data[j*8 +: 8];
                 if(reflect_in) begin
                     data_byte = reverse_data_byte(input_data[j*8 +: 8]);
