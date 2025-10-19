@@ -45,7 +45,7 @@ always_ff @(posedge clk, negedge n_rst) begin
         vsync <= 0;
         hsync <= 0;
     end
-    else if(vga_clk) begin
+    else if(clk_25) begin
         pixel_x <= next_pixel_x;
         pixel_y <= next_pixel_y;
         video_on <= next_video_on;

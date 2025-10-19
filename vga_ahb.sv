@@ -85,13 +85,13 @@ always_comb begin
     raddr = fb_y * VGA_WIDTH + fb_x;
     rdata = (vga_blank_n) ?  mem[raddr][23:0] : 24'b0;
 end
-always_ff @(posedge clk, negedge n_rst) begin
+always_ff @(posedge clk) begin
     if(fb_wen) mem[waddr] <= wdata;
 end
 
 always_comb begin
     vga_r = rdata[23:16];
-    vga_b = rdata[15:8];
+    vga_g = rdata[15:8];
     vga_b = rdata[7:0];
 end
 
