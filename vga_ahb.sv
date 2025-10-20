@@ -2,9 +2,9 @@ module vga_ahb #(
     parameter int ADDR_WIDTH = 32,
     parameter int DATA_WIDTH = 32
 )(
-    input logic clk, // 50 MHz
+    input logic ahb_clk,
+    input logic clk_50, // 50 MHz
     input logic n_rst,
-
     output logic vga_clk, // 25 MHz
     output logic [7:0] vga_r,
     output logic [7:0] vga_g,
@@ -18,6 +18,7 @@ module vga_ahb #(
 localparam VGA_WIDTH = 320;
 localparam VGA_HEIGHT = 240;
 localparam MEM_DEPTH = VGA_WIDTH * VGA_HEIGHT * 2;
+localparam FB_BASE_ADDR = 32'hD0000000;
 
 // Declareation
 logic clk_25;
@@ -33,10 +34,9 @@ logic [23:0] rdata;
 logic [DATA_WIDTH-1:0] mem [MEM_DEPTH-1:0];
 logic [ADDR_WIDTH-1:0] raddr;
 
-
 // 50 MHz -> 25 MHz
 assign vga_clk = clk_25;
-always_ff @(posedge clk, negedge n_rst) begin
+always_ff @(posedge clk_50, negedge n_rst) begin
     if(!n_rst) clk_25 <= 1'b0;
     else clk_25 <= ~clk_25;
 end
@@ -47,7 +47,7 @@ always_comb begin
     busif.error = 1'b0;
     busif.rdata = '0;
 end
-always_ff @(posedge clk, negedge n_rst) begin
+always_ff @(posedge ahb_clk, negedge n_rst) begin
     if(!n_rst) begin
         fb_wen <= 1'b0;
         fb_wdata <= '0;
@@ -55,13 +55,13 @@ always_ff @(posedge clk, negedge n_rst) begin
     end else begin
         fb_wen <= busif.wen;
         fb_wdata <= busif.wdata;
-        fb_waddr <= busif.addr;
+        fb_waddr <= busif.addr - FB_BASE_ADDR;
     end
 end
 
 // VGA controller
 vga_controller VGA_CNT (
-    .clk(clk),
+    .clk(ahb_clk),
     .clk_25(vga_clk),
     .n_rst(n_rst),
     .hsync(vga_hs),
@@ -85,8 +85,8 @@ always_comb begin
     raddr = fb_y * VGA_WIDTH + fb_x;
     rdata = (vga_blank_n) ?  mem[raddr][23:0] : 24'b0;
 end
-always_ff @(posedge clk) begin
-    if(fb_wen) mem[waddr] <= wdata;
+always_ff @(posedge ahb_clk) begin
+    if(fb_wen) mem[waddr] <= fb_wdata[23:0];
 end
 
 always_comb begin
