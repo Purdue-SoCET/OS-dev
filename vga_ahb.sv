@@ -31,7 +31,7 @@ logic [23:0] pixel_data;
 logic [ADDR_WIDTH-1:0] waddr;
 logic [DATA_WIDTH-1:0] wdata;
 logic [23:0] rdata; 
-logic [DATA_WIDTH-1:0] mem [MEM_DEPTH-1:0];
+logic [DATA_WIDTH-1:0] mem [128-1:0];
 logic [ADDR_WIDTH-1:0] raddr;
 
 // 50 MHz -> 25 MHz
@@ -61,7 +61,7 @@ end
 
 // VGA controller
 vga_controller VGA_CNT (
-    .clk(ahb_clk),
+    //.clk(ahb_clk),
     .clk_25(vga_clk),
     .n_rst(n_rst),
     .hsync(vga_hs),
@@ -85,6 +85,7 @@ always_comb begin
     raddr = fb_y * VGA_WIDTH + fb_x;
     rdata = (vga_blank_n) ?  mem[raddr][23:0] : 24'b0;
 end
+/*
 always_ff @(posedge ahb_clk) begin
     if(fb_wen) mem[waddr] <= fb_wdata[23:0];
 end
@@ -94,5 +95,27 @@ always_comb begin
     vga_g = rdata[15:8];
     vga_b = rdata[7:0];
 end
-
+*/
+always_comb begin
+	if(vga_x < 10'd160) begin
+	    vga_r = 8'hff;
+	    vga_g = 8'h00;
+	    vga_b = 8'h00;
+	end
+	else if (vga_x < 10'd320) begin
+	    vga_r = 8'h0;
+	    vga_g = 8'hff;
+	    vga_b = 8'h0;
+	end
+	else if (vga_x < 10'd480) begin
+	    vga_r = 8'h0;
+	    vga_g = 8'h0;
+	    vga_b = 8'hff;
+	end
+	else begin
+	    vga_r = 8'hff;
+	    vga_g = 8'hff;
+	    vga_b = 8'hff;
+	end
+end
 endmodule

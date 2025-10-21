@@ -8,7 +8,7 @@ module vga_controller #(
     parameter VS = 2,       // vertical vsync pulse width video lines
     parameter VBP = 29       // vertical back porch video lines
 ) (
-    input logic clk,
+    // input logic clk,
     input logic clk_25,
     input logic n_rst,
     output logic hsync,
@@ -37,7 +37,7 @@ logic [9:0] next_pixel_x;
 logic [9:0] next_pixel_y;
 logic next_video_on;
 
-always_ff @(posedge clk, negedge n_rst) begin
+always_ff @(posedge clk_25, negedge n_rst) begin
     if(!n_rst) begin
         pixel_x <= '0;
         pixel_y <= '0;
@@ -45,7 +45,7 @@ always_ff @(posedge clk, negedge n_rst) begin
         vsync <= 0;
         hsync <= 0;
     end
-    else if(clk_25) begin
+    else begin
         pixel_x <= next_pixel_x;
         pixel_y <= next_pixel_y;
         video_on <= next_video_on;
