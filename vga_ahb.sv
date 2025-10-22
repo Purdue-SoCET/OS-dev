@@ -35,7 +35,6 @@ logic [DATA_WIDTH-1:0] mem [MEM_DEPTH-1:0];
 // AHB Signals
 logic ahb_wen;
 logic [DATA_WIDTH-1:0] ahb_wdata;
-logic [ADDR_WIDTH-1:0] ahb_waddr; // Address in FB
 logic [ADDR_WIDTH-1:0] ahb_addr; // Raw Address from AFTx07 core
 
 logic addr_match;
