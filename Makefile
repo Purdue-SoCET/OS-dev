@@ -10,7 +10,8 @@ CFLAGS += -DUART_STDIO
 # Source files
 FATFS = FatFs/source/*.c
 #SRCS = FatFs/image_test.c FatFs/os.c FatFs/image.c $(FATFS)
-SRCS = main.c FatFs/os.c $(FATFS)
+#SRCS = main.c FatFs/os.c $(FATFS)
+SRCS = vga_test.c FatFs/os.c $(FATFS)
 
 # Output files
 TARGET = a.out

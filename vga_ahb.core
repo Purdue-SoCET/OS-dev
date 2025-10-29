@@ -1,0 +1,31 @@
+CAPI=2:
+name: socet:OS-dev:vga_ahb
+
+filesets:
+    rtl:
+        depend:
+            - "socet:bus-components:bus_protocol_if"
+            - "socet:OS-dev:vga_controller"
+        files:
+            - VGA/vga_ahb.sv
+        file_type: systemVerilogSource
+
+
+targets:
+    default: &default
+        filesets:
+            - rtl
+        toplevel: vga_ahb
+
+    fpga:
+        <<: *default
+        description: Synthesize for FPGA
+        default_tool: quartus
+        toplevel:
+            - vga_ahb
+
+        tools:
+            quartus:
+                family: Cyclone IV E
+                device: EP4CE115F29C7 
+                
