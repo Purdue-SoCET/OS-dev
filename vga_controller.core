@@ -4,7 +4,11 @@ name: socet:OS-dev:vga_controller
 filesets:
     rtl:
         files:
+<<<<<<< HEAD
             - VGA/vga_controller.sv
+=======
+            - vga_controller.sv
+>>>>>>> dfa1bdc78263e0b52c57e2a1d25df532ab39b35e
         file_type: systemVerilogSource
 
 

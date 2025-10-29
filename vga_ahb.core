@@ -7,7 +7,11 @@ filesets:
             - "socet:bus-components:bus_protocol_if"
             - "socet:OS-dev:vga_controller"
         files:
+<<<<<<< HEAD
             - VGA/vga_ahb.sv
+=======
+            - vga_ahb.sv
+>>>>>>> dfa1bdc78263e0b52c57e2a1d25df532ab39b35e
         file_type: systemVerilogSource
 
 

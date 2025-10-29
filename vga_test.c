@@ -1,4 +1,5 @@
 #include <stdint.h>
+<<<<<<< HEAD
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -73,6 +74,7 @@ void draw_rectangle () {
 }
 
 int main () {
+<<<<<<< HEAD
     //draw_rectangle();
     //display_gray_image();
 
@@ -92,3 +94,4 @@ int main () {
     };
     return 0;
 }
+
