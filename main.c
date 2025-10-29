@@ -17,6 +17,7 @@ static volatile uint32_t * const vga_fb = (volatile uint32_t *)0xD0000000;
 #define ESC         0xDB
 #define ESC_END     0xDC
 #define ESC_ESC     0xDD
+#define TYPE_DUMMY  0x7F
 #define TYPE_META   0x01
 #define TYPE_DATA   0x02
 #define MAX_FRAME   (10 * 1024)
@@ -62,13 +63,15 @@ static void __init_uart(void)
 // ======================================================================
 // Define global variables
 // ======================================================================
-static transfer_info_t transfer_info;
-static slip_state_t    state = ST_IDLE;
-static uint8_t         frame_buf[MAX_FRAME];
-static uint32_t        frame_num = 0;
-static uint8_t         data_buf[MEM_SIZE];
-static uint32_t        count_photo = 0;
-static uint32_t        photo_offset = 0;
+static transfer_info_t   transfer_info;
+static slip_state_t      state = ST_IDLE;
+static uint8_t           frame_buf[MAX_FRAME];
+static uint32_t          frame_num = 0;
+static uint8_t           data_buf[MEM_SIZE];
+static uint32_t          count_photo = 0;
+static uint32_t          photo_offset = 0;
+static uint32_t          dummy_flag = 0;
+static uint32_t          image_done = 0;
 
 // ======================================================================
 // Declare functions
@@ -162,14 +165,14 @@ static void send_photo_to_SD() {
 
     // Mount
     res = f_mount(&fs, "", 0);
-    printf("Start mounting SD card...\n");
+    //printf("Start mounting SD card...\n");
     if (res) {
         printf("f_mount failed with %d\n", res);
     }
 
     // Create file in SD
     res = f_open(&fil, filename, FA_CREATE_ALWAYS | FA_WRITE);
-    printf("Creating file in SD card...\n");
+    //printf("Creating file in SD card...\n");
     if (res) {
         f_close(&fil);
         f_mount(0, "", 0);
@@ -193,10 +196,10 @@ static void send_photo_to_SD() {
     // Close file
     f_close(&fil);
     f_mount(0, "", 0);
-    printf("Complete sending photo to SD!\n");
+    //printf("Complete sending photo to SD!\n");
 
     // Display on the monitor
-    printf("Displaying on the monitor...\n");
+    //printf("Displaying on the monitor...\n");
     display_color_image(filename);
 }
 
@@ -262,7 +265,7 @@ static void handle_frame(uint8_t *buf, uint32_t frame_num){
     uint8_t type = buf[0];
     if (!frame_num) return;
     if (type == TYPE_META) {
-	handle_meta(buf, frame_num); 
+	    handle_meta(buf, frame_num); 
     } 
     else if (type == TYPE_DATA) {
         handle_data(buf, frame_num); 
@@ -329,23 +332,34 @@ static void handle_data(const uint8_t *buf, uint32_t frame_num_in){
         printf("Received image from PC!\n");
 	    printf("Start sending it to SD card...\n");
         transfer_info.active = 0;
-	    send_photo_to_SD();
-        search_next_image(); // back to outer loop
+        send_photo_to_SD();
     }
 }
 
 static void search_next_image() {
     while (1) {
-        // if () uart_rx(); // if dummy data is detected
-        if (count_photo != 0) { // if no photo was received, back to the loop
-            if (photo_offset == count_photo) photo_offset = 1;
+        uart_rx();
+        if (photo_offset <= count_photo) {
             char filename[32];
             snprintf(filename, sizeof(filename), "image%lu.bmp", (unsigned long)photo_offset);
             display_color_image(filename);
-            for (volatile int i = 0; i < 0x1600000; i++) {
-                // if () uart_rx(); // if dummy data is detected
-            }
-            photo_offset++;
+        }
+        for (volatile int i = 0; i < 0xF00000; i++) {
+            uart_rx();
+        }
+        photo_offset++;
+        if (photo_offset > count_photo) {
+            photo_offset = 1;
+        }
+    }
+
+    while (dummy_flag) {
+        uart_rx();
+        if (image_done) {
+            printf("Start sending it to SD card...\n");
+            send_photo_to_SD();
+            image_done = 0;
+            dummy_flag = 0;
         }
     }
 }

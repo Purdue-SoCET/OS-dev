@@ -1,5 +1,4 @@
 #include <stdint.h>
-<<<<<<< HEAD
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -74,24 +73,14 @@ void draw_rectangle () {
 }
 
 int main () {
-<<<<<<< HEAD
     //draw_rectangle();
-    //display_gray_image();
+    char filename[4][12] = {"ece.bmp", "f1.bmp", "lena.bmp", "snail.bmp"};
 
     while(1) {
-        display_color_image("mario.bmp");
-        for (volatile int i = 0; i < 0x800000; i++);
-        display_color_image("lena.bmp");
-        for (volatile int i = 0; i < 0x800000; i++);
-        display_color_image("purdue.bmp");
-        for (volatile int i = 0; i < 0x800000; i++);
-        //display_color_image("purdue_front.bmp");
-        //for (volatile int i = 0; i < 0x800000; i++);
-        //display_color_image("ece.bmp");
-        //for (volatile int i = 0; i < 0x800000; i++);
-        display_color_image("snail.bmp");
-        for (volatile int i = 0; i < 0x800000; i++);
+        for (volatile int i = 0; i < 4; i++) {
+            display_color_image(filename[i]);
+            for (volatile int j = 0; j < 0x600000; j++); // delay
+        }
     };
     return 0;
 }
-
