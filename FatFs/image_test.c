@@ -27,19 +27,12 @@ int main() {
 
 void write_img() {
 	FATFS fs;
-        FIL dst;
+    FIL dst;
 	FRESULT res;
 	BYTE work[FF_MAX_SS];
 	UINT bw;
 	UINT bytes_left = test_png_len;
 	UINT offset = 0;
-
-        /* Format the default drive with default parameters */
-        //res = f_mkfs("", 0, work, sizeof work);
-	//printf("f_mkfs here!\n");
-        //if (res) {
-        //    printf("f_mkfs failed with %d\n", res);
-        //}
 
 	// Mount
 	res = f_mount(&fs, "", 0);
