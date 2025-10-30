@@ -1,5 +1,5 @@
 CAPI=2:
-name: socet:OS-dev:crc
+name: socet:OS-dev:crc_ahb
 
 filesets:
     rtl:
