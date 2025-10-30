@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <inttypes.h>
 
 // CRC Subordinate Base Address
 #define CRC_BASE 0x90003000u   // Base address for the CRC peripheral
@@ -15,7 +16,7 @@
 
 // MMIO helpers
 // These helper functions directly write/read to hardware registers
-static inline void mmio_write32(uint32_t addr, uint32_t data) {
+static inline void mmio_write32(uintptr_t addr, uint32_t data) {
   *(volatile uint32_t *)addr = data;  // Write 32-bit data to given address
 }
 
