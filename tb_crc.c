@@ -143,9 +143,4 @@ int main(void)
                              0x06782345u, 0x00000000u, 0xFFFFFFFFu,
                              0, 0, 1);
   dbg_hex32(g6);
-
-  // Infinite loop to keep simulation running (so ModelSim can capture waveform)
-  for (;;) { }
-
-  return 0;
 }
