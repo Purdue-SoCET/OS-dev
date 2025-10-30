@@ -2,7 +2,7 @@
 #include <inttypes.h>
 
 // CRC Subordinate Base Address
-#define CRC_BASE 0x90003000u   // Base address for the CRC peripheral
+#define CRC_BASE ((uintptr_t)0x90003000u) // Base address for the CRC peripheral
 
 // Register Offsets (Word-Aligned)
 #define CRC_CTRL 0x00  // Control Register: [0]=EN [1]=INIT [2]=FINALIZE [3]=REF_IN [4]=REF_OUT [5]=XOR_EN
@@ -20,9 +20,10 @@ static inline void mmio_write32(uintptr_t addr, uint32_t data) {
   *(volatile uint32_t *)addr = data;  // Write 32-bit data to given address
 }
 
-static inline uint32_t mmio_read32(uint32_t addr) {
-  return *(volatile uint32_t *)addr;  // Read 32-bit value from given address
+static inline uint32_t mmio_read32(uintptr_t addr) {
+    return *(volatile uint32_t *)(addr);
 }
+
 
 // Debug print placeholder (for UART or MMIO printer if available)
 static inline void dbg_hex32(uint32_t v) {
