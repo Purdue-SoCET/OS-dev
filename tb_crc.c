@@ -95,9 +95,10 @@ static uint32_t crc_run_case(uint64_t msg64,
   crc_set_config(poly, seed, xorout, /*en=*/1, ref_in, ref_out, xor_en);
   crc_init_pulse();
 
-  // 2. Feed two 32-bit words (lower word first, upper word second)
-  crc_push_word((uint32_t)(msg64 & 0xFFFFFFFFu)); // Lower 32 bits
-  crc_push_word((uint32_t)((msg64 >> 32) & 0xFFFFFFFFu)); // Upper 32 bits
+// 2. Feed two 32-bit words (upper word first, lower word second)
+crc_push_word((uint32_t)((msg64 >> 32) & 0xFFFFFFFFu)); 
+crc_push_word((uint32_t)(msg64 & 0xFFFFFFFFu));         
+
 
   // 3. Finalize CRC computation and return result
   return crc_finalize_and_read();
