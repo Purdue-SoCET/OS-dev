@@ -1,7 +1,8 @@
 #include <stdint.h>
+#include <inttypes.h>
 
 // CRC Subordinate Base Address
-#define CRC_BASE 0x90003000u   // Base address for the CRC peripheral
+#define CRC_BASE ((uintptr_t)0x90003000u) // Base address for the CRC peripheral
 
 // Register Offsets (Word-Aligned)
 #define CRC_CTRL 0x00  // Control Register: [0]=EN [1]=INIT [2]=FINALIZE [3]=REF_IN [4]=REF_OUT [5]=XOR_EN
@@ -15,13 +16,14 @@
 
 // MMIO helpers
 // These helper functions directly write/read to hardware registers
-static inline void mmio_write32(uint32_t addr, uint32_t data) {
+static inline void mmio_write32(uintptr_t addr, uint32_t data) {
   *(volatile uint32_t *)addr = data;  // Write 32-bit data to given address
 }
 
-static inline uint32_t mmio_read32(uint32_t addr) {
-  return *(volatile uint32_t *)addr;  // Read 32-bit value from given address
+static inline uint32_t mmio_read32(uintptr_t addr) {
+    return *(volatile uint32_t *)(addr);
 }
+
 
 // Debug print placeholder (for UART or MMIO printer if available)
 static inline void dbg_hex32(uint32_t v) {
@@ -95,9 +97,10 @@ static uint32_t crc_run_case(uint64_t msg64,
   crc_set_config(poly, seed, xorout, /*en=*/1, ref_in, ref_out, xor_en);
   crc_init_pulse();
 
-  // 2. Feed two 32-bit words (lower word first, upper word second)
-  crc_push_word((uint32_t)(msg64 & 0xFFFFFFFFu)); // Lower 32 bits
-  crc_push_word((uint32_t)((msg64 >> 32) & 0xFFFFFFFFu)); // Upper 32 bits
+// 2. Feed two 32-bit words (upper word first, lower word second)
+crc_push_word((uint32_t)((msg64 >> 32) & 0xFFFFFFFFu)); 
+crc_push_word((uint32_t)(msg64 & 0xFFFFFFFFu));         
+
 
   // 3. Finalize CRC computation and return result
   return crc_finalize_and_read();
