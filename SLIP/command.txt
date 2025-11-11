@@ -1,0 +1,4 @@
+1. python x07_sender.py --port /dev/tty.usbserial-A50285BI  --baud 9600 --file test.bmp --chunk 1024 --ifsleep 1
+
+
+# ls /dev/tty* : way to check the exising port
