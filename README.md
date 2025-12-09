@@ -2,6 +2,9 @@
 ## Introduction
 This project integrates SLIP, FatFs, CRC, and VGA to devlop a Smart Photo Frame that receives images sent from an external device to the AFTx07 and displays them on a monitor in a slideshow format.
 
+## Design Overview
+![System Architecture Diagram](./img/design_overview.png)
+
 ## Image Requirement
 |  **Property**  | **Specification** |
 |----------------|-------------------|
@@ -14,9 +17,9 @@ This project integrates SLIP, FatFs, CRC, and VGA to devlop a Smart Photo Frame 
 For SD and SPI setup, please refer to the README in the [fatfs-aft](https://github.com/Purdue-SoCET/fatfs-aft).
 ### UART
 Because the SLIP protocol's sender and receiver must be able to communicate with each other, two FTDIs are required for UART. Please refer to the table below for the connection setup.
-|FTDI1 TX|FTDI1 RX|FTDI2 TX|FTDI2 RX|
-|--------|--------|--------|--------|
-|PinX    |PinX    |PinX    |PinX    |
+|FTDI1 Tx (Send Data)|FTDI2 Rx (Receive ACK)|
+|--------------------|----------------------|
+|Pin36               |Pin37                 |
 
 ## Hardware Requirement
 ### Implement VGA controller to the AFTx07
@@ -27,7 +30,7 @@ Daeun's part
 ## Software Requirement
 * Ensure that all files in this repository are placed in a single folder on the ASICFAB server.
 * Use your personal PC as the external device for sending images.
-* Ensure that `mx07_sender.py` (in the SLIP folder) and the image you want to send are located in the same directory on your PC.
+* Ensure that `x07_sender.py` (in the SLIP folder) and the image you want to send are located in the same directory on your PC.
 
 ## General Flow
 ### 1. Start program (Flash to FPGA)
@@ -51,7 +54,7 @@ Once flashing is complete, `main.c` start running automatically on the FPGA.
 ### 2. Choose image and send it using UART
 Prepare the sender environment:
 * Place your image file and x07_sender.py in the same directory.
-* Refer to command.txt for the transmission command format.
+* Refer to command.txt in SLIP directory for the transmission command format.
 
 Example: sending test.bmp
 <pre>python x07_sender.py --port /dev/tty.usbserial-A50285BI --baud 9600 --file test.bmp --chunk 1024</pre>
@@ -59,14 +62,17 @@ Example: sending test.bmp
 > The serial port depends on the FTDI device connected to your system.  
 > Check the FTDI model and specify the correct port.
 
-During transmission, the terminal will display logs such as the number of bytes sent and `"sent data"`.
+During transmission, the terminal will display the number of bytes sent and the type of frame sent, such as `sent META` or `sent DATA`.
+<img src=./img/start_of_transmission.png width="480">
 
 ### 3. Receive image and display on a monitor
 Because of the image size, transmission typically takes about 10 minutes.
 
 After the FPGA finishes receiving the data:
 * A completion message will appear in the terminal.
+* <img src=./img/end_of_transmission.png width="480">
 * The image will be displayed on the monitor with a wave-motion effect.
+* <img src=./img/image_display.png width="480" height="320">
 
 ### 4. Slide Show
 If additional images are sent, repeat the same transsmion steps.
@@ -75,6 +81,6 @@ When **two or more images** are stored and no active transfer is in progress, th
 
 ## Flow of Read/Write Operation
 ### Receive image and store in SD card
-Attach flowchart diagram here
-### Open image data and send them to VGA controller
-Attach flowchart diagram here
+![SD Write Flow](./img/write_flow.png)
+### Open image and send the data to the VGA controller
+![SD Read Flow](./img/read_flow.png)

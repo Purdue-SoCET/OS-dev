@@ -1,0 +1,5 @@
+* Send test.bmp
+python x07_sender.py --port /dev/tty.usbserial-A50285BI --baud 9600 --file test.bmp --chunk 1024
+
+* List all USB-to-serial adapters
+ls /dev/tty*
