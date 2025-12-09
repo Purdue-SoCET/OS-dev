@@ -63,7 +63,7 @@ Example: sending test.bmp
 > Check the FTDI model and specify the correct port.
 
 During transmission, the terminal will display the number of bytes sent and the type of frame sent, such as `sent META` or `sent DATA`.
-<br><img src=./img/start_of_transmission.png width="480">
+<br><br><img src=./img/start_of_transmission.png width="480">
 
 ### 3. Receive image and display on a monitor
 Because of the image size, transmission typically takes about 10 minutes.
