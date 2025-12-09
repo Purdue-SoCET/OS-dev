@@ -12,6 +12,9 @@ static volatile uint32_t * const vga_fb = (volatile uint32_t *)0xD0000000;
 // ======================================================================
 // UART
 #define BAUD_CYCLES 2604
+#define ACK         0
+#define DONE        1
+#define BAD         2
 // SLIP
 #define END         0xC0
 #define ESC         0xDB
@@ -25,9 +28,9 @@ static volatile uint32_t * const vga_fb = (volatile uint32_t *)0xD0000000;
 // FatFs
 #define SEC_SIZE    512
 // Image (Color)
-#define BMP_HEADER  138
-#define IMG_WIDTH   48 // 86 for gray
-#define IMG_HEIGHT  48 // 86 for gray
+#define BMP_HEADER  54
+#define IMG_WIDTH   640
+#define IMG_HEIGHT  480
 
 // ======================================================================
 // Define structures
@@ -72,6 +75,12 @@ static uint32_t          count_photo = 0;
 static uint32_t          photo_offset = 0;
 static uint32_t          dummy_flag = 0;
 static uint32_t          image_done = 0;
+static FATFS             fs;
+static FIL               fil;
+static int               file_opened = 0;
+static char              filename[32];
+static uint8_t           write_buf[SEC_SIZE];
+static uint32_t          write_bytes = 0;
 
 // ======================================================================
 // Declare functions
@@ -88,119 +97,106 @@ static inline uint32_t   rd32(const uint8_t *p);
 static void              handle_frame(uint8_t *buf, uint32_t frame_num);
 static void              handle_meta (const uint8_t *buf, uint32_t frame_num);
 static void              handle_data (const uint8_t *buf, uint32_t frame_num);
-static void              send_photo_to_SD();
-static void              display_color_image (char filename[32]);
+static void              display_rgb565_image (char filename[32]);
 static void              search_next_image();
+static void              send_ack(int TYPE);
 
 // ======================================================================
 // Functions
 // ======================================================================
-void display_color_image (char filename[32]) {
-    // Declaration
+static void send_ack(int TYPE) {
+    if (TYPE == ACK) {
+        uart->txdata = 'A';
+        while (!(uart->txstate & 0x1));
+        uart->txdata = 'C';
+        while (!(uart->txstate & 0x1));
+        uart->txdata = 'K';
+        while (!(uart->txstate & 0x1));
+    }
+    else if (TYPE == DONE) {
+        uart->txdata = 'E';
+        while (!(uart->txstate & 0x1));
+        uart->txdata = 'N';
+        while (!(uart->txstate & 0x1));
+        uart->txdata = 'D';
+        while (!(uart->txstate & 0x1));
+    } else {
+        uart->txdata = 'B';
+        while (!(uart->txstate & 0x1));
+        uart->txdata = 'A';
+        while (!(uart->txstate & 0x1));
+        uart->txdata = 'D';
+        while (!(uart->txstate & 0x1));
+    }
+}
+
+static void display_rgb565_image(char *filename) {
     FRESULT res;
     FATFS fs;
     FIL fil;
     UINT br;
 
-    static uint8_t img_buf[MEM_SIZE]; // data buffer
-    uint8_t header[BMP_HEADER]; // header buffer
-    uint32_t total_bytes = 0; // image size
+    static uint8_t sec_buf[SEC_SIZE];
+    static uint8_t row_buf[((IMG_WIDTH * 2 + 3) & ~3)];
 
-    // Mount SD card
     res = f_mount(&fs, "", 0);
-    if (res) {
-        f_mount(0, "", 0);
-    }
+    if (res) return;
 
-    // Open image file
     res = f_open(&fil, filename, FA_READ);
     if (res) {
-	    f_close(&fil);
-	    f_mount(0, "", 0);
+        f_mount(0, "", 0);
+        return;
     }
 
-    // Read header
+    uint8_t header[BMP_HEADER];
     f_read(&fil, header, BMP_HEADER, &br);
 
-    // Read data
-    while (total_bytes + SEC_SIZE <= MEM_SIZE) {
-        res = f_read(&fil, img_buf + total_bytes, SEC_SIZE, &br);
-        if (res != FR_OK || br == 0) break;
-        total_bytes += br;
-        if (br < SEC_SIZE) break;
-    }
-    f_close(&fil);
-    f_mount(0, "", 0);
+    uint32_t pixel_offset =
+        (uint32_t)header[10]        |
+        ((uint32_t)header[11] << 8) |
+        ((uint32_t)header[12] << 16)|
+        ((uint32_t)header[13] << 24);
 
-    // Send data from the bottom
-    uint32_t row_size = ((IMG_WIDTH * 3 + 3) / 4) * 4;
-    uint32_t count = 0;
+    f_lseek(&fil, pixel_offset);
 
-    for (int row = IMG_HEIGHT - 1; row >= 0; row--) {  // bottom -> top
-        uint8_t *row_ptr = img_buf + row * row_size; // move pointer to the end
-        for (int col = 0; col < IMG_WIDTH; col++) {
-            uint8_t B = row_ptr[col * 3 + 0];
-            uint8_t G = row_ptr[col * 3 + 1];
-            uint8_t R = row_ptr[col * 3 + 2];
-            uint32_t rgb = (R << 16) | (G << 8) | B;
-            vga_fb[count++] = rgb;
+    uint32_t row_size = ((IMG_WIDTH * 2 + 3) & ~3);
+    uint32_t row_bytes = 0;
+    uint32_t bmp_row = 0;
+
+    while (bmp_row < IMG_HEIGHT) {
+        f_read(&fil, sec_buf, 512, &br);
+        if (br == 0) break;
+
+        uint32_t p = 0;
+
+        while (p < br && bmp_row < IMG_HEIGHT)
+        {
+            uint32_t need = row_size - row_bytes;
+            uint32_t remain = br - p;
+            uint32_t take = (remain < need) ? remain : need;
+
+            memcpy(row_buf + row_bytes, sec_buf + p, take);
+
+            row_bytes += take;
+            p += take;
+
+            if (row_bytes == row_size) {
+                uint32_t fb_row = IMG_HEIGHT - 1 - bmp_row;
+                uint32_t base = fb_row * IMG_WIDTH;
+
+                for (int col = 0; col < IMG_WIDTH; col++) {
+                    uint16_t pixel565 = (row_buf[col * 2 + 1] << 8) | row_buf[col * 2 + 0];
+                    vga_fb[base + col] = pixel565;
+                }
+
+                bmp_row++;
+                row_bytes = 0;
+            }
         }
     }
-}
 
-static void send_photo_to_SD() {
-    // Name file
-    count_photo++;
-    photo_offset = count_photo;
-    char filename[32];
-    snprintf(filename, sizeof(filename), "image%lu.bmp", (unsigned long)count_photo);
-
-    // Declare variables	
-    FATFS fs;
-    FIL fil;
-    FRESULT res;
-    UINT bw;
-    UINT bytes_left = transfer_info.received;
-    UINT offset = 0;
-
-    // Mount
-    res = f_mount(&fs, "", 0);
-    //printf("Start mounting SD card...\n");
-    if (res) {
-        printf("f_mount failed with %d\n", res);
-    }
-
-    // Create file in SD
-    res = f_open(&fil, filename, FA_CREATE_ALWAYS | FA_WRITE);
-    //printf("Creating file in SD card...\n");
-    if (res) {
-        f_close(&fil);
-        f_mount(0, "", 0);
-        printf("f_open for dst failed with %d\n", res);
-    }
-
-    // Write photo data
-    while (bytes_left > 0) {
-	    UINT chunk_size = (bytes_left > SEC_SIZE) ? SEC_SIZE : bytes_left;
-		
-	    res = f_write(&fil, &data_buf[offset], chunk_size, &bw);
-	    if (res != FR_OK || bw != chunk_size) {
-	        printf("f_write failed with %d\n", res);
-            break;
-	}
-
-	    offset += chunk_size;
-	    bytes_left -= chunk_size;
-    }
-
-    // Close file
     f_close(&fil);
     f_mount(0, "", 0);
-    //printf("Complete sending photo to SD!\n");
-
-    // Display on the monitor
-    //printf("Displaying on the monitor...\n");
-    display_color_image(filename);
 }
 
 // ENDIAN LOADER
@@ -265,7 +261,7 @@ static void handle_frame(uint8_t *buf, uint32_t frame_num){
     uint8_t type = buf[0];
     if (!frame_num) return;
     if (type == TYPE_META) {
-	    handle_meta(buf, frame_num); 
+        handle_meta(buf, frame_num); 
     } 
     else if (type == TYPE_DATA) {
         handle_data(buf, frame_num); 
@@ -283,7 +279,6 @@ static void handle_meta(const uint8_t *buf, uint32_t frame_num) {
     uint16_t chunk_size = rd16(buf + 10);
     uint8_t  fname_len  = buf[12];
     if (13u + (uint32_t)fname_len > frame_num) return;  // check the range
-    //if (total_size > MEM_SIZE) return; // preventing the size getting bigger than the RAM size
     if (fname_len > 255) fname_len = 255;
     
     // init receive session
@@ -299,6 +294,35 @@ static void handle_meta(const uint8_t *buf, uint32_t frame_num) {
         memcpy(transfer_info.fname, (const char*)(buf + 13), fname_len);
     }
     transfer_info.fname[fname_len] = '\0';
+
+    write_bytes = 0;
+
+    // Send the data to SD
+    snprintf(filename, sizeof(filename), "image%d.bmp", count_photo);
+
+    // Mount
+    FRESULT res;
+    res = f_mount(&fs, "", 0);
+    if (res) {
+        file_opened = 0;
+        transfer_info.active = 0;
+        printf("f_mount failed with %d\n", res);
+    }
+
+    // Create file in SD
+    res = f_open(&fil, filename, FA_CREATE_ALWAYS | FA_WRITE);
+
+    if (res) {
+        f_close(&fil);
+        f_mount(0, "", 0);
+        file_opened = 0;
+        transfer_info.active = 0;
+        printf("f_open for dst failed with %d\n", res);
+    }
+
+    file_opened = 1;
+    send_ack(ACK);
+    uart_rx();
 }
 
 // DATA Frame Handler
@@ -307,67 +331,119 @@ static void handle_meta(const uint8_t *buf, uint32_t frame_num) {
 static void handle_data(const uint8_t *buf, uint32_t frame_num_in){
     const uint32_t MIN_DATA = 11u;
     if (transfer_info.active == 0) return;
-    if (frame_num_in < MIN_DATA) return;
+    if (frame_num_in < MIN_DATA) {
+        send_ack(BAD);
+        uart_rx();
+    }
 
     uint32_t file_id     = rd32(buf + 1);
     uint32_t seq         = rd32(buf + 5);
     uint16_t payload_len = rd16(buf + 9);
 
-    if (11u + (uint32_t)payload_len > frame_num_in) return; // length check
+    if (11u + (uint32_t)payload_len > frame_num_in) {
+        send_ack(BAD);
+        uart_rx();
+    } // length check
+    
     const uint8_t *payload = buf + 11;
 
-    if (file_id != transfer_info.file_id) return;
-    if (seq     != transfer_info.expect_seq) return;
+    if (file_id != transfer_info.file_id) {
+        send_ack(BAD);
+        uart_rx();
+    }
+    if (seq != transfer_info.expect_seq) {
+        send_ack(BAD);
+        uart_rx();
+    }
 
-    if (transfer_info.received + payload_len > transfer_info.total) return;
-    if (transfer_info.received + payload_len > MEM_SIZE) return;
+    if (transfer_info.received + payload_len > transfer_info.total) {
+        send_ack(BAD);
+        uart_rx();
+    }
 
-    // append each DATA frame to the data_buf
-    memcpy(&data_buf[transfer_info.received], payload, payload_len);
+    if (file_opened == 0) return;
+
+    // Write data to SD
+    UINT bw;
+    FRESULT res;
+
+    uint32_t pos = 0;
+    while (pos < payload_len) {
+        uint32_t space = SEC_SIZE - write_bytes;
+        uint32_t copy = payload_len - pos;
+        if (copy > space) copy = space;
+
+        memcpy(write_buf + write_bytes, payload + pos, copy);
+        write_bytes += copy;
+        pos += copy;
+
+        if (write_bytes == SEC_SIZE) {
+            res = f_write(&fil, write_buf, SEC_SIZE, &bw);
+            if (res != FR_OK || bw != SEC_SIZE) {
+                f_close(&fil);
+                f_mount(0, "", 0);
+                file_opened = 0;
+                transfer_info.active = 0;
+                printf("f_write failed with %d\n", res);
+                return;
+            }
+            write_bytes = 0;
+        }
+    }
+
     transfer_info.received   += payload_len;
     transfer_info.expect_seq  = seq + 1;
 
-    // once appending to the data buf is done, copy it to the RAM
+    if (transfer_info.received == transfer_info.total) {
+        if (write_bytes > 0) {
+            res = f_write(&fil, write_buf, write_bytes, &bw);
+            if (res != FR_OK || bw != write_bytes) {
+                f_close(&fil);
+                f_mount(0, "", 0);
+                file_opened = 0;
+                transfer_info.active = 0;
+                printf("f_write failed with %d\n", res);
+                return;
+            }
+            write_bytes = 0;
+        }
+        send_ack(DONE);
+    } else {
+        send_ack(ACK);
+        uart_rx();
+    }
+
     if (transfer_info.received == transfer_info.total) {
         printf("Received image from PC!\n");
-	    printf("Start sending it to SD card...\n");
+        f_close(&fil);
+        f_mount(0, "", 0);
+        file_opened = 0;
         transfer_info.active = 0;
-        send_photo_to_SD();
+        display_rgb565_image(filename);
+        photo_offset = count_photo;
+        count_photo++;
+        search_next_image();
     }
 }
 
 static void search_next_image() {
     while (1) {
         uart_rx();
-        if (photo_offset <= count_photo) {
-            char filename[32];
-            snprintf(filename, sizeof(filename), "image%lu.bmp", (unsigned long)photo_offset);
-            display_color_image(filename);
+        if (photo_offset < count_photo) {
+            char next_filename[32];
+            snprintf(next_filename, sizeof(next_filename), "image%d.bmp", photo_offset);
+            display_rgb565_image(next_filename);
         }
         for (volatile int i = 0; i < 0xF00000; i++) {
             uart_rx();
         }
         photo_offset++;
-        if (photo_offset > count_photo) {
-            photo_offset = 1;
-        }
-    }
-
-    while (dummy_flag) {
-        uart_rx();
-        if (image_done) {
-            printf("Start sending it to SD card...\n");
-            send_photo_to_SD();
-            image_done = 0;
-            dummy_flag = 0;
+        if (photo_offset == count_photo) {
+            photo_offset = 0;
         }
     }
 }
 
-// ======================================================================
-// Functions
-// ======================================================================
 int main(void) {
-    printf("Start receiving photo...\n");
     search_next_image();
 }
