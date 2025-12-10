@@ -54,6 +54,11 @@ Once flashing is complete, `main.c` start running automatically on the FPGA.
 ### 2. Choose image and send it using UART
 Prepare the sender environment:
 * Place your image file and x07_sender.py in the same directory.
+* The sender script requires the following command parameters:
+  * --port: Serial port of the FTDI used for sending data
+  * --baud: UART baud rate (use 9600)
+  * --file: BMP image to send (640×480, RGB565)
+  * --chunk: SLIP data frame size (1024 recommended)
 * Refer to command.txt in SLIP directory for the transmission command format.
 
 Example: sending test.bmp
