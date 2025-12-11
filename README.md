@@ -23,7 +23,29 @@ Because the SLIP protocol's sender and receiver must be able to communicate with
 
 ## Hardware Requirement
 ### Implement VGA controller to the AFTx07
-Seongbin's part
+- The VGA module connects to the SoC using the predefined `bus_protocol_if`.
+- The peripheral is added to the system’s memory map using the `AHB_ADD` macro.
+- A sufficient address range must be allocated for framebuffer usage.
+- In `aftx07_mmap.vh`, the VGA peripheral is mapped to:  
+  **`32'hD0000000`** (base address for framebuffer and control registers).
+
+### SRAM Usage
+- External SRAM on the DE2-115 is used as a framebuffer.
+- VGA reads pixel data from SRAM in sync with the vga clock.
+- In this project, our design had to store pixel data inside the on-chip SRAM, which has a fixed width of 16 bits. Since the original VGA pixel format uses 24-bit RGB values, we compressed each pixel into the RGB565 format to fit within the 16-bit memory constraint. This reduction allowed us to efficiently store and access image data without exceeding the available SRAM capacity while still maintaining acceptable visual quality for display.
+- Pin mapping for SRAM address/data/control lines is handled in `pinmap.tcl`
+
+### DAC Connection
+The module outputs the following signals directly to the board’s VGA DAC pins:
+
+- `vga_red[7:0]`
+- `vga_green[7:0]`
+- `vga_blue[7:0]`
+- `hsync`
+- `vsync`
+
+These are assigned in the FPGA top-level and pin mapping script (`pinmap.tcl`).
+
 ### Implement CRC accelerator to the AFTx07
 Daeun's part
 
