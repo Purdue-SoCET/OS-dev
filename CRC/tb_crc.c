@@ -59,7 +59,7 @@ int main(void)
     const uint64_t MSG = 0x766970736F636574ull; // ASCII for "vipsocet"
     const uint32_t EXP = 0x36CE4FECu;           // Expected CRC result
 
-    print_string("=== Minimal CRC HW test ===\n");
+    print_string("=== CRC HW test ===\n");
 
     // Begin CRC session
     crc_start_session();
@@ -92,7 +92,7 @@ int main(void)
         print_string("\n");
     }
 
-    print_string("=== Minimal CRC test done ===\n");
+    print_string("=== CRC test done ===\n");
 
     while (1) { /* spin */ }
     return 0;
