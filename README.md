@@ -23,6 +23,9 @@ Because the SLIP protocol's sender and receiver must be able to communicate with
 
 ## Hardware Requirement
 ### Implement VGA controller to the AFTx07
+**Note:** Since this VGA module depends on DE2-115–specific hardware, porting to another FPGA may require modifying pin mappings and memory connections.
+
+### AHB Bus Integration
 - The VGA module connects to the SoC using the predefined `bus_protocol_if`.
 - The peripheral is added to the system’s memory map using the `AHB_ADD` macro.
 - A sufficient address range must be allocated for framebuffer usage.
