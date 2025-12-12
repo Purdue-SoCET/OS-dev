@@ -32,6 +32,13 @@ Because the SLIP protocol's sender and receiver must be able to communicate with
 - In `aftx07_mmap.vh`, the VGA peripheral is mapped to:  
   **`32'hD0000000`** (base address for framebuffer and control registers).
 
+#### VGA Controller
+- This project uses an open-source VGA controller as the basis for video signal generation.  
+  - **VGA controller (open source):**  
+    <https://github.com/johnwinans/Verilog-Examples/blob/main/vga/sync/vgasync.v>
+- The controller is fully parameterized, allowing you to adjust timing values to match the desired frame rate (FPS) or display resolution.
+- The default configuration is set to **640×480 at 60 Hz**, following standard VGA timing. If a different display mode is required, parameters such as the pixel clock, horizontal/vertical porch durations, and sync pulse widths can be modified accordingly.
+
 #### SRAM Usage
 - External SRAM on the DE2-115 is used as a framebuffer.
 - VGA reads pixel data from SRAM in sync with the vga clock.
