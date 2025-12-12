@@ -50,7 +50,50 @@ The module outputs the following signals directly to the board’s VGA DAC pins:
 These are assigned in the FPGA top-level and pin mapping script (`pinmap.tcl`).
 
 ### Implement CRC accelerator to the AFTx07
-Daeun's part
+The CRC accelerator was integrated into the AFTx07 SoC to verify the integrity of image data transmitted over the UART-based SLIP protocol. It detects transmission errors before the data is stored on the SD card or sent to the VGA subsystem. The accelerator implements a lightweight, area-efficient CRC-32 engine based on an XOR-shift polynomial division approach and processes input data one byte at a time.
+
+#### AHB Bus Integration
+- CRC is implemented as an **AHB-Lite subordinate peripheral** using the
+  standard `bus_protocol_if`.
+- It is mapped into the AFTx07 memory space (32'h90003000) and accessed by software through
+  `aftx07_mmap.vh`.
+- Software control enables:
+  - Enabling or disabling CRC computation 
+  - Initializing the CRC value 
+  - Streaming input data bytes to the accelerator
+  - Reading the final CRC result after computation
+
+#### Role in System Operation
+During image reception, the CRC accelerator operates as follows:
+
+1. SLIP frames are received via UART.
+2. Payload data bytes are written to the CRC accelerator through its memory-mapped
+   data register.
+3. The CRC hardware incrementally computes the CRC-32 value in parallel with data reception.
+4. After the full image is received, the computed CRC result is used to verify data integrity.
+
+### CRC Accelerator Verification
+To verify correct integration and functionality of the CRC accelerator, a **hardware-level CRC
+test** was performed and validated using console output.
+
+#### Test Description
+- Two 32-bit data words are sequentially written to the CRC accelerator:
+  - `PUSH high : 0x76697073`
+  - `PUSH low  : 0x6f636574`
+- The input data is delivered to the CRC hardware via memory-mapped registers.
+- The CRC accelerator performs CRC-32 computation on the input data.
+- After computation, the final CRC value is printed to the console.
+
+#### Test Result
+- Hardware CRC result: `0x36ce4fec`
+- A completion message confirms successful execution of the CRC test.
+
+This result confirms that the CRC accelerator correctly processes input data and produces the
+expected CRC-32 value, demonstrating **functional correctness and successful system
+integration** within the AFTx07 platform.
+
+<img src=./img/crc.png width="480" height="320">
+
 
 ## Software Requirement
 * Ensure that all files in this repository are placed in a single folder on the ASICFAB server.
